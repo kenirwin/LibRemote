@@ -14,19 +14,16 @@ $db = new FlatfileSearch($conf);
 $table = 'torch_data';
 $terms = 'baird tipson';
 $fields = ['subject','title'];
-$conf = array ('orderby' => 'subject, title year');
+$conf = array ('orderby' => 'subject, title, year',
+               'limit' => '0,1',
+               'retrieve' => ['title','year'] //defaults to *
+);
 $db->booleanAnd($table,$terms,$fields);
 var_dump($db->rowCount);
 var_dump($db->headers);
 var_dump($db->rows);
 */
 
-/*
-Dev Agenda
-* conf array will handle:
-  limit
-  return only certain columns
-*/
 
     public function __construct (array $db_config) {
         try { 
@@ -47,6 +44,7 @@ Dev Agenda
     public function booleanAnd($table, $terms, $fields, $conf = []) {
         $parts = $this->buildQueryAnd($table, $terms, $fields, $conf);
         // parts has  'query' 'placeholders'
+        // print_r($parts);
         $stmt = $this->db->prepare($parts['query']);
         $stmt->execute($parts['placeholders']);
         $this->rowCount = $stmt->rowCount();
@@ -74,7 +72,19 @@ Dev Agenda
             $order = 'ORDER BY '.$conf['orderby'];
         }
         else { $order = ''; }
-        $query = "SELECT * FROM $table WHERE $searchstring $order";
+
+        if (array_key_exists('limit', $conf)) {
+            $limit = 'LIMIT '.$conf['limit']; 
+        }
+        else { $limit = ''; }
+
+        if (array_key_exists('retrieve', $conf)) {
+            $cols = '`'.join('`,`', $conf['retrieve']).'`';
+        }
+        else { $cols = '*'; } 
+            
+
+        $query = "SELECT $cols FROM $table WHERE $searchstring $order $limit";
         $return = array(
             "query" => $query,
             "placeholders" => $placeholders
